@@ -1,16 +1,29 @@
 from sqlmodel import SQLModel, Session, select, text
 from app.db.database import engine
-from app.models.service import Service, ServiceStatus
-from app.models.knowledge import Runbook, PastIncident
-from app.models.deployment import Deployment, DeploymentStatus
+from app.models import (
+    Incident,
+    IncidentEvent,
+    Investigation,
+    InvestigationHypothesis,
+    InvestigationToolCall,
+    Service,
+    ServiceStatus,
+    Deployment,
+    DeploymentStatus,
+    TelemetryMetric,
+    TelemetryLog,
+    RemediationAction,
+    Runbook,
+    PastIncident,
+)
 from datetime import datetime, timezone, timedelta
 
 
 def migrate_tables():
     """Ensures newly added columns and enum type conversions in existing Postgres database."""
-    with engine.connect() as conn:
-        dialect = engine.dialect.name
-        if dialect == "postgresql":
+    dialect = engine.dialect.name
+    if dialect == "postgresql":
+        with engine.connect() as conn:
             # Add any missing columns to existing incident table
             conn.execute(text("ALTER TABLE incident ADD COLUMN IF NOT EXISTS root_cause VARCHAR;"))
             conn.execute(text("ALTER TABLE incident ADD COLUMN IF NOT EXISTS resolution_summary VARCHAR;"))
@@ -18,7 +31,7 @@ def migrate_tables():
             conn.execute(text("ALTER TABLE incident ADD COLUMN IF NOT EXISTS detection_time TIMESTAMP WITHOUT TIME ZONE;"))
             conn.execute(text("ALTER TABLE incident ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITHOUT TIME ZONE;"))
             conn.execute(text("ALTER TABLE incident ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE;"))
-            
+
             # Convert enum columns to VARCHAR so all values are accepted seamlessly
             conn.execute(text("ALTER TABLE incident ALTER COLUMN status TYPE VARCHAR USING status::VARCHAR;"))
             conn.execute(text("ALTER TABLE incident ALTER COLUMN severity TYPE VARCHAR USING severity::VARCHAR;"))
@@ -326,6 +339,6 @@ Restart service container to release leaked memory buffers while engineering pat
 
 
 def init_db():
-    migrate_tables()
     SQLModel.metadata.create_all(engine)
+    migrate_tables()
     seed_initial_data()
